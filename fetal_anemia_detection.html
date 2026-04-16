@@ -1,0 +1,1283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>FetalScan AI — Fetal Anemia Detection System</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --surface: #000000;
+    --surface2: #000000;
+    --border: #e7e5e5;
+    --accent: #00c9a7;
+    --accent2: #d4d5d7;
+    --danger: #ef4444;
+    --warn: #f59e0b;
+    --safe: #10b981;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --subtle: #94a3b8;
+    --glow: rgba(0,201,167,0.15);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  /* ── TOPBAR ── */
+  .topbar {
+    position: fixed; top:0; left:0; right:0; z-index:100;
+    background: rgba(10,14,26,0.85);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 2rem; height: 60px;
+  }
+  .topbar-logo { display:flex; align-items:center; gap:.6rem; }
+  .topbar-logo .dot {
+    width:10px; height:10px; border-radius:50%;
+    background: var(--accent);
+    box-shadow: 0 0 10px var(--accent);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  .topbar-logo span { font-family:'DM Serif Display',serif; font-size:1.2rem; color:var(--accent); }
+  .topbar-logo small { color:var(--muted); font-size:.75rem; font-family:'DM Mono',monospace; }
+  .nav-links { display:flex; gap:1.5rem; }
+  .nav-links a {
+    color:var(--subtle); text-decoration:none; font-size:.85rem; font-weight:500;
+    transition: color .2s;
+  }
+  .nav-links a:hover { color:var(--accent); }
+  .badge-live {
+    background:rgba(16,185,129,.12); color:var(--safe);
+    border:1px solid rgba(16,185,129,.3); border-radius:4px;
+    font-size:.7rem; font-family:'DM Mono',monospace; padding:2px 8px;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 80px 2rem 4rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content:'';
+    position:absolute; inset:0;
+    background: radial-gradient(ellipse 80% 60% at 50% 20%, rgba(0,201,167,.08) 0%, transparent 70%),
+                radial-gradient(ellipse 50% 40% at 80% 80%, rgba(59,130,246,.06) 0%, transparent 60%);
+  }
+  .grid-bg {
+    position:absolute; inset:0; opacity:.04;
+    background-image: linear-gradient(var(--border) 1px, transparent 1px),
+                      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+  .hero-content { text-align:center; max-width:800px; position:relative; z-index:1; }
+  .hero-tag {
+    display:inline-flex; align-items:center; gap:.5rem;
+    background: rgba(0,201,167,.08); border:1px solid rgba(0,201,167,.2);
+    border-radius:999px; padding:.3rem 1rem; margin-bottom:2rem;
+    font-size:.8rem; font-family:'DM Mono',monospace; color:var(--accent);
+    animation: fadeDown .6s ease both;
+  }
+  .hero h1 {
+    font-family:'DM Serif Display',serif; font-size:clamp(2.5rem,6vw,4.5rem);
+    line-height:1.1; margin-bottom:1.2rem;
+    animation: fadeDown .6s .1s ease both;
+  }
+  .hero h1 span { color:var(--accent); }
+  .hero p {
+    color:var(--subtle); font-size:1.1rem; max-width:580px; margin:0 auto 2.5rem;
+    animation: fadeDown .6s .2s ease both;
+  }
+  .hero-btns { display:flex; gap:1rem; justify-content:center; flex-wrap:wrap;
+    animation: fadeDown .6s .3s ease both; }
+  .btn {
+    display:inline-flex; align-items:center; gap:.5rem;
+    padding:.75rem 1.75rem; border-radius:8px; font-weight:600; font-size:.9rem;
+    cursor:pointer; text-decoration:none; transition: all .2s; border:none;
+  }
+  .btn-primary {
+    background: var(--accent); color:#0a0e1a;
+    box-shadow: 0 0 20px rgba(0,201,167,.3);
+  }
+  .btn-primary:hover { background:#00e0bb; box-shadow:0 0 30px rgba(0,201,167,.5); transform:translateY(-1px); }
+  .btn-outline {
+    background:transparent; color:var(--text);
+    border:1px solid var(--border);
+  }
+  .btn-outline:hover { border-color:var(--accent); color:var(--accent); }
+  @keyframes fadeDown { from{opacity:0;transform:translateY(-12px)} to{opacity:1;transform:none} }
+
+  /* ── STATS BAND ── */
+  .stats-band {
+    display:flex; flex-wrap:wrap; gap:0;
+    border-top:1px solid var(--border); border-bottom:1px solid var(--border);
+    background:var(--surface);
+  }
+  .stat-item {
+    flex:1; min-width:160px; padding:1.5rem 2rem;
+    border-right:1px solid var(--border);
+    text-align:center;
+  }
+  .stat-item:last-child { border-right:none; }
+  .stat-num { font-family:'DM Serif Display',serif; font-size:2rem; color:var(--accent); }
+  .stat-label { font-size:.8rem; color:var(--muted); margin-top:.2rem; }
+
+  /* ── SECTIONS ── */
+  section { padding: 5rem 2rem; }
+  .section-inner { max-width:1100px; margin:0 auto; }
+  .section-tag {
+    font-family:'DM Mono',monospace; font-size:.75rem; color:var(--accent);
+    letter-spacing:.1em; text-transform:uppercase; margin-bottom:.75rem;
+    display:flex; align-items:center; gap:.5rem;
+  }
+  .section-tag::before { content:''; width:24px; height:1px; background:var(--accent); }
+  h2 { font-family:'DM Serif Display',serif; font-size:2.2rem; margin-bottom:1rem; }
+  h3 { font-family:'DM Serif Display',serif; font-size:1.3rem; margin-bottom:.75rem; }
+
+  /* ── UPLOAD TOOL ── */
+  #detect { background: var(--surface); border-top:1px solid var(--border); }
+  .detect-grid { display:grid; grid-template-columns:1fr 1fr; gap:2rem; margin-top:2rem; }
+  @media(max-width:760px){ .detect-grid{grid-template-columns:1fr;} }
+  .upload-zone {
+    border:2px dashed var(--border); border-radius:12px;
+    padding:3rem 2rem; text-align:center;
+    transition: all .3s; cursor:pointer;
+    position:relative;
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color:var(--accent); background:var(--glow); }
+  .upload-zone input { position:absolute; inset:0; opacity:0; cursor:pointer; }
+  .upload-icon { font-size:3rem; margin-bottom:1rem; }
+  .upload-zone p { color:var(--subtle); font-size:.9rem; }
+  .upload-zone strong { color:var(--text); font-size:1rem; display:block; margin-bottom:.5rem; }
+  .file-formats { margin-top:.75rem; font-family:'DM Mono',monospace; font-size:.7rem; color:var(--muted); }
+  .preview-box {
+    border:1px solid var(--border); border-radius:12px;
+    overflow:hidden; background:var(--bg); min-height:200px;
+    display:flex; flex-direction:column;
+  }
+  .preview-box img { width:100%; height:200px; object-fit:contain; background:#000; }
+  .preview-empty {
+    flex:1; display:flex; align-items:center; justify-content:center;
+    color:var(--muted); font-size:.9rem;
+  }
+  .params-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-top:1rem; }
+  .param-field label { font-size:.8rem; color:var(--muted); display:block; margin-bottom:.3rem; }
+  .param-field input {
+    width:100%; background:var(--bg); border:1px solid var(--border);
+    border-radius:6px; padding:.5rem .75rem; color:var(--text);
+    font-family:'DM Mono',monospace; font-size:.85rem;
+    transition: border-color .2s;
+  }
+  .param-field input:focus { outline:none; border-color:var(--accent); }
+  .analyze-btn {
+    width:100%; margin-top:1.5rem; padding:1rem;
+    background:var(--accent); color:#0a0e1a;
+    border:none; border-radius:8px; font-size:1rem; font-weight:700;
+    cursor:pointer; transition: all .2s;
+    font-family:'DM Sans',sans-serif;
+  }
+  .analyze-btn:hover { background:#00e0bb; box-shadow:0 0 24px rgba(0,201,167,.4); }
+  .analyze-btn:disabled { opacity:.4; cursor:not-allowed; }
+
+  /* ── RESULT PANEL ── */
+  .result-panel {
+    border:1px solid var(--border); border-radius:12px;
+    overflow:hidden; display:none;
+  }
+  .result-panel.show { display:block; animation:fadeUp .4s ease; }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:none} }
+  .result-header {
+    padding:1rem 1.5rem;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .result-header.positive { background:rgba(239,68,68,.12); border-bottom:1px solid rgba(239,68,68,.2); }
+  .result-header.negative { background:rgba(16,185,129,.12); border-bottom:1px solid rgba(16,185,129,.2); }
+  .result-verdict {
+    font-family:'DM Serif Display',serif; font-size:1.4rem;
+  }
+  .result-verdict.pos { color:var(--danger); }
+  .result-verdict.neg { color:var(--safe); }
+  .confidence-pill {
+    font-family:'DM Mono',monospace; font-size:.8rem;
+    padding:.25rem .75rem; border-radius:999px;
+  }
+  .confidence-pill.pos { background:rgba(239,68,68,.15); color:var(--danger); }
+  .confidence-pill.neg { background:rgba(16,185,129,.15); color:var(--safe); }
+  .result-body { padding:1.5rem; }
+  .metrics-row { display:grid; grid-template-columns:repeat(5,1fr); gap:1rem; margin-bottom:1.5rem; }
+  @media(max-width:600px){ .metrics-row{grid-template-columns:repeat(2,1fr);} }
+  .metric-card {
+    background:var(--bg); border:1px solid var(--border); border-radius:8px;
+    padding:.75rem 1rem; text-align:center;
+  }
+  .metric-card .m-val { font-family:'DM Mono',monospace; font-size:1.1rem; color:var(--accent2); font-weight:500; }
+  .metric-card .m-key { font-size:.7rem; color:var(--muted); margin-top:.2rem; }
+  .risk-bar-wrap { margin-bottom:1.5rem; }
+  .risk-bar-wrap label { font-size:.8rem; color:var(--muted); display:flex; justify-content:space-between; margin-bottom:.4rem; }
+  .risk-bar { height:8px; border-radius:999px; background:var(--border); overflow:hidden; }
+  .risk-fill { height:100%; border-radius:999px; transition:width 1s ease; }
+  .risk-fill.high { background: linear-gradient(90deg,#f59e0b,#ef4444); }
+  .risk-fill.low { background: linear-gradient(90deg,#3b82f6,#10b981); }
+  .recommendation-box {
+    background:var(--bg); border-left:3px solid var(--accent2);
+    border-radius:0 8px 8px 0; padding:1rem 1.2rem;
+    font-size:.88rem; color:var(--subtle);
+  }
+  .recommendation-box strong { color:var(--text); display:block; margin-bottom:.4rem; }
+
+  /* ── PIPELINE ── */
+  #pipeline { background:var(--bg); }
+  .steps { display:flex; flex-direction:column; gap:0; position:relative; margin-top:2.5rem; }
+  .steps::before {
+    content:''; position:absolute; left:28px; top:0; bottom:0;
+    width:2px; background:linear-gradient(180deg, var(--accent), var(--accent2));
+  }
+  .step {
+    display:flex; gap:1.5rem; padding:1.5rem 0; position:relative;
+    animation: fadeRight .5s ease both;
+  }
+  .step:nth-child(2){animation-delay:.1s}
+  .step:nth-child(3){animation-delay:.2s}
+  .step:nth-child(4){animation-delay:.3s}
+  .step:nth-child(5){animation-delay:.4s}
+  @keyframes fadeRight { from{opacity:0;transform:translateX(-12px)} to{opacity:1;transform:none} }
+  .step-num {
+    width:56px; height:56px; min-width:56px;
+    background:var(--surface); border:2px solid var(--accent);
+    border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-family:'DM Mono',monospace; font-size:1rem; color:var(--accent); font-weight:600;
+    box-shadow: 0 0 16px rgba(0,201,167,.2);
+    position:relative; z-index:1;
+  }
+  .step-content { padding-top:.5rem; }
+  .step-content h3 { font-size:1.1rem; color:var(--text); }
+  .step-content p { color:var(--muted); font-size:.88rem; margin-top:.3rem; }
+  .code-chip {
+    display:inline-block; background:var(--surface);
+    border:1px solid var(--border); border-radius:4px;
+    font-family:'DM Mono',monospace; font-size:.75rem; color:var(--accent2);
+    padding:.1rem .5rem; margin:.3rem .2rem 0 0;
+  }
+
+  /* ── SETUP GUIDE ── */
+  #setup { background:var(--surface); border-top:1px solid var(--border); }
+  .setup-tabs { display:flex; gap:.5rem; margin-bottom:2rem; flex-wrap:wrap; }
+  .tab-btn {
+    padding:.5rem 1.2rem; border-radius:6px; font-size:.85rem; font-weight:600;
+    cursor:pointer; transition:all .2s; border:1px solid var(--border);
+    background:transparent; color:var(--muted); font-family:'DM Sans',sans-serif;
+  }
+  .tab-btn.active { background:var(--accent); color:#0a0e1a; border-color:var(--accent); }
+  .tab-pane { display:none; }
+  .tab-pane.active { display:block; animation:fadeUp .3s ease; }
+  .code-block {
+    background:var(--bg); border:1px solid var(--border); border-radius:8px;
+    padding:1.25rem 1.5rem; font-family:'DM Mono',monospace; font-size:.8rem;
+    color:#a5f3fc; overflow-x:auto; line-height:1.8; position:relative;
+    margin:1rem 0;
+  }
+  .code-block .cm { color:var(--muted); }
+  .code-block .ck { color:#c084fc; }
+  .code-block .cv { color:#86efac; }
+  .code-block .cs { color:#fca5a5; }
+  .copy-btn {
+    position:absolute; top:.75rem; right:.75rem;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:4px; padding:.2rem .6rem; font-size:.7rem;
+    color:var(--muted); cursor:pointer; transition:all .2s;
+    font-family:'DM Sans',sans-serif;
+  }
+  .copy-btn:hover { color:var(--accent); border-color:var(--accent); }
+  .info-card {
+    background:rgba(59,130,246,.06); border:1px solid rgba(59,130,246,.2);
+    border-radius:8px; padding:1rem 1.2rem; margin:1rem 0;
+    font-size:.88rem; color:var(--subtle);
+  }
+  .info-card strong { color:var(--accent2); }
+  .warn-card {
+    background:rgba(245,158,11,.06); border:1px solid rgba(245,158,11,.2);
+    border-radius:8px; padding:1rem 1.2rem; margin:1rem 0;
+    font-size:.88rem; color:var(--subtle);
+  }
+  .warn-card strong { color:var(--warn); }
+  .req-table { width:100%; border-collapse:collapse; margin:1rem 0; }
+  .req-table th { text-align:left; padding:.6rem 1rem; background:var(--surface2); font-size:.8rem; color:var(--muted); }
+  .req-table td { padding:.6rem 1rem; border-top:1px solid var(--border); font-size:.85rem; }
+  .req-table td:first-child { font-family:'DM Mono',monospace; color:var(--accent2); }
+  .check { color:var(--safe); }
+  
+  /* ── ARCHITECTURE ── */
+  #architecture { background:var(--bg); }
+  .arch-diagram {
+    margin-top:2rem;
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:12px; padding:2rem; overflow-x:auto;
+  }
+  .arch-flow { display:flex; align-items:center; gap:0; flex-wrap:nowrap; justify-content:center; }
+  .arch-node {
+    background:var(--bg); border:1px solid var(--border); border-radius:8px;
+    padding:.75rem 1rem; text-align:center; min-width:110px;
+    font-size:.75rem; color:var(--subtle);
+  }
+  .arch-node .node-icon { font-size:1.4rem; display:block; margin-bottom:.3rem; }
+  .arch-node strong { display:block; color:var(--text); font-size:.8rem; }
+  .arch-arrow { color:var(--muted); font-size:1.2rem; padding:0 .5rem; flex-shrink:0; }
+  .arch-node.highlight { border-color:var(--accent); background:var(--glow); }
+  .arch-node.highlight strong { color:var(--accent); }
+  .two-stage { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-top:1.5rem; }
+  @media(max-width:700px){ .two-stage{grid-template-columns:1fr;} }
+  .stage-card {
+    background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:1.5rem;
+  }
+  .stage-card .stage-label {
+    font-family:'DM Mono',monospace; font-size:.7rem; color:var(--accent); margin-bottom:.5rem;
+  }
+  .stage-card ul { list-style:none; }
+  .stage-card ul li { padding:.25rem 0; font-size:.85rem; color:var(--subtle); }
+  .stage-card ul li::before { content:'→ '; color:var(--accent); }
+
+  /* ── REPORTS ── */
+  #reports { background:var(--surface); border-top:1px solid var(--border); }
+  .report-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:1.5rem; margin-top:2rem; }
+  .report-card {
+    background:var(--bg); border:1px solid var(--border);
+    border-radius:10px; padding:1.5rem;
+    transition:border-color .2s, transform .2s;
+  }
+  .report-card:hover { border-color:var(--accent); transform:translateY(-2px); }
+  .report-card .r-icon { font-size:1.8rem; margin-bottom:.75rem; }
+  .report-card .r-title { font-family:'DM Serif Display',serif; font-size:1.05rem; margin-bottom:.5rem; }
+  .report-card .r-desc { font-size:.82rem; color:var(--muted); line-height:1.6; }
+  .report-card .r-meta { font-family:'DM Mono',monospace; font-size:.7rem; color:var(--accent2); margin-top:.75rem; }
+
+  /* ── WAVEFORM VIZ ── */
+  .waveform-demo { margin-top:2rem; }
+  canvas#waveCanvas { width:100%; height:200px; border-radius:8px; background:var(--bg); border:1px solid var(--border); }
+
+  /* ── METRICS TABLE ── */
+  .metrics-full { margin-top:1.5rem; overflow-x:auto; }
+  .metrics-full table { width:100%; border-collapse:collapse; }
+  .metrics-full th { background:var(--surface2); padding:.7rem 1rem; font-size:.8rem; color:var(--muted); text-align:left; }
+  .metrics-full td { padding:.7rem 1rem; border-top:1px solid var(--border); font-size:.85rem; }
+  .metrics-full td.good { color:var(--safe); font-family:'DM Mono',monospace; font-weight:500; }
+  .metrics-full td.warn { color:var(--warn); font-family:'DM Mono',monospace; font-weight:500; }
+  .metrics-full td.code { font-family:'DM Mono',monospace; color:var(--accent2); }
+
+  /* ── ABOUT ── */
+  #about { background:var(--bg); }
+  .about-grid { display:grid; grid-template-columns:2fr 1fr; gap:3rem; }
+  @media(max-width:700px){ .about-grid{grid-template-columns:1fr;} }
+  .team-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:1.5rem; }
+  .team-card .t-role { font-size:.75rem; color:var(--muted); font-family:'DM Mono',monospace; }
+  .team-card .t-name { font-family:'DM Serif Display',serif; font-size:1.2rem; margin:.25rem 0 .5rem; }
+  .team-card .t-inst { font-size:.82rem; color:var(--subtle); }
+  .disclaimer {
+    margin-top:2rem; padding:1.2rem 1.5rem;
+    background:rgba(245,158,11,.05); border:1px solid rgba(245,158,11,.2);
+    border-radius:8px; font-size:.82rem; color:var(--subtle); line-height:1.7;
+  }
+  .disclaimer strong { color:var(--warn); }
+
+  /* ── FOOTER ── */
+  footer {
+    background:var(--surface); border-top:1px solid var(--border);
+    padding:2rem; text-align:center;
+    font-size:.8rem; color:var(--muted);
+  }
+  footer a { color:var(--accent); text-decoration:none; }
+
+  /* ── PROGRESS OVERLAY ── */
+  .progress-overlay {
+    display:none; position:fixed; inset:0; z-index:200;
+    background:rgba(10,14,26,.85); backdrop-filter:blur(6px);
+    align-items:center; justify-content:center; flex-direction:column; gap:1.5rem;
+  }
+  .progress-overlay.show { display:flex; }
+  .progress-ring {
+    width:80px; height:80px;
+    border:3px solid var(--border);
+    border-top-color:var(--accent);
+    border-radius:50%; animation:spin 1s linear infinite;
+  }
+  @keyframes spin { to{transform:rotate(360deg)} }
+  .progress-text { font-family:'DM Mono',monospace; font-size:.9rem; color:var(--accent); text-align:center; }
+  .progress-steps { font-size:.8rem; color:var(--muted); }
+
+  /* ── HISTORY ── */
+  #history { background:var(--surface); border-top:1px solid var(--border); }
+  .history-table { overflow-x:auto; margin-top:1.5rem; }
+  .history-table table { width:100%; border-collapse:collapse; }
+  .history-table th { background:var(--surface2); padding:.65rem 1rem; font-size:.78rem; color:var(--muted); text-align:left; }
+  .history-table td { padding:.65rem 1rem; border-top:1px solid var(--border); font-size:.82rem; font-family:'DM Mono',monospace; }
+  .tag-pos { background:rgba(239,68,68,.1); color:var(--danger); padding:.15rem .5rem; border-radius:4px; font-size:.72rem; }
+  .tag-neg { background:rgba(16,185,129,.1); color:var(--safe); padding:.15rem .5rem; border-radius:4px; font-size:.72rem; }
+</style>
+</head>
+<body>
+
+<!-- PROGRESS OVERLAY -->
+<div class="progress-overlay" id="progressOverlay">
+  <div class="progress-ring"></div>
+  <div class="progress-text">Analyzing Ultrasound Image...</div>
+  <div class="progress-steps" id="progressStep">Step 1/4: Preprocessing image</div>
+</div>
+
+<!-- TOPBAR -->
+<nav class="topbar">
+  <div class="topbar-logo">
+    <div class="dot"></div>
+    <span>FetalScan AI</span>
+    <small>v2.1.0</small>
+  </div>
+  <div class="nav-links">
+    <a href="#detect">Detect</a>
+    <a href="#pipeline">Pipeline</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#setup">Setup</a>
+    <a href="#reports">Reports</a>
+    <a href="#about">About</a>
+  </div>
+  <span class="badge-live">● DEMO MODE</span>
+</nav>
+
+<!-- HERO -->
+<section class="hero" id="home">
+  <div class="grid-bg"></div>
+  <div class="hero-content">
+    <div class="hero-tag">
+      <span>🧬</span>
+      AI-Powered Perinatal Diagnostics · MJCET Research 2026
+    </div>
+    <h1>Fetal Anemia <span>Detection</span><br/>via Doppler Ultrasound</h1>
+    <p>A two-stage deep learning pipeline combining GeoProteoNet CNN segmentation with Random Forest hemodynamic classification to predict fetal anemia risk from MCA Doppler ultrasound images.</p>
+    <div class="hero-btns">
+      <a href="#detect" class="btn btn-primary">🩺 Run Detection</a>
+      <a href="#pipeline" class="btn btn-outline">📖 How It Works</a>
+    </div>
+  </div>
+</section>
+
+<!-- STATS -->
+<div class="stats-band">
+  <div class="stat-item"><div class="stat-num">128×128</div><div class="stat-label">CNN Input Resolution</div></div>
+  <div class="stat-item"><div class="stat-num">5</div><div class="stat-label">Hemodynamic Features</div></div>
+  <div class="stat-item"><div class="stat-num">100</div><div class="stat-label">RF Estimators</div></div>
+  <div class="stat-item"><div class="stat-num">15</div><div class="stat-label">Training Epochs</div></div>
+  <div class="stat-item"><div class="stat-num">2</div><div class="stat-label">Model Stages</div></div>
+</div>
+
+<!-- DETECT -->
+<section id="detect">
+<div class="section-inner">
+  <div class="section-tag">Primary Tool</div>
+  <h2>Fetal Anemia Detection</h2>
+  <p style="color:var(--muted);max-width:600px;">Upload a Doppler ultrasound image (MCA preferred). The system will segment fetal abdominal structures, extract hemodynamic features, and classify anemia risk.</p>
+
+  <div class="detect-grid">
+    <!-- Left: upload + params -->
+    <div>
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="fileInput" accept=".jpg,.jpeg,.png,.bmp,.tiff,.dcm"/>
+        <div class="upload-icon">🫁</div>
+        <strong>Drop Ultrasound Image Here</strong>
+        <p>or click to browse files</p>
+        <div class="file-formats">Accepted: JPG · PNG · BMP · TIFF · DICOM</div>
+      </div>
+
+      <div class="params-grid" style="margin-top:1.5rem;">
+        <div class="param-field">
+          <label>PSV (cm/s) — optional override</label>
+          <input type="number" id="psvInput" placeholder="Auto-detected" step="0.01"/>
+        </div>
+        <div class="param-field">
+          <label>EDV (cm/s) — optional override</label>
+          <input type="number" id="edvInput" placeholder="Auto-detected" step="0.01"/>
+        </div>
+        <div class="param-field">
+          <label>GA (weeks)</label>
+          <input type="number" id="gaInput" placeholder="e.g. 28" min="16" max="42"/>
+        </div>
+        <div class="param-field">
+          <label>Patient ID</label>
+          <input type="text" id="pidInput" placeholder="e.g. PT-2025-001"/>
+        </div>
+      </div>
+
+      <button class="analyze-btn" id="analyzeBtn" disabled onclick="runAnalysis()">
+        🔍 Analyze Image
+      </button>
+    </div>
+
+    <!-- Right: preview + result -->
+    <div style="display:flex;flex-direction:column;gap:1.5rem;">
+      <div class="preview-box" id="previewBox">
+        <div class="preview-empty" id="previewEmpty">📷 Image preview will appear here</div>
+        <img id="previewImg" style="display:none;" alt="Ultrasound preview"/>
+      </div>
+
+      <div class="result-panel" id="resultPanel">
+        <div class="result-header" id="resultHeader">
+          <span class="result-verdict" id="resultVerdict">—</span>
+          <span class="confidence-pill" id="confPill">—</span>
+        </div>
+        <div class="result-body">
+          <div class="metrics-row" id="metricsRow">
+            <div class="metric-card"><div class="m-val" id="mPSV">—</div><div class="m-key">PSV</div></div>
+            <div class="metric-card"><div class="m-val" id="mEDV">—</div><div class="m-key">EDV</div></div>
+            <div class="metric-card"><div class="m-val" id="mRI">—</div><div class="m-key">RI</div></div>
+            <div class="metric-card"><div class="m-val" id="mPI">—</div><div class="m-key">PI</div></div>
+            <div class="metric-card"><div class="m-val" id="mSD">—</div><div class="m-key">S/D</div></div>
+          </div>
+          <div class="risk-bar-wrap">
+            <label>Anemia Risk Score <span id="riskPct">—</span></label>
+            <div class="risk-bar"><div class="risk-fill" id="riskFill" style="width:0%"></div></div>
+          </div>
+          <div class="recommendation-box" id="recBox"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- PIPELINE -->
+<section id="pipeline">
+<div class="section-inner">
+  <div class="section-tag">How It Works</div>
+  <h2>Detection Pipeline</h2>
+  <p style="color:var(--muted);max-width:640px;margin-bottom:.5rem;">End-to-end flow from raw ultrasound input to clinical classification output, derived from the GeoProteoNet + Random Forest two-stage model.</p>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">01</div>
+      <div class="step-content">
+        <h3>Image Acquisition & Preprocessing</h3>
+        <p>Doppler ultrasound image is loaded and resized to 128×128 px. Grayscale normalization is applied (pixel values scaled 0–1 using OpenCV). Accepts DICOM, PNG, JPG, BMP, TIFF formats.</p>
+        <span class="code-chip">cv2.imread()</span>
+        <span class="code-chip">cv2.resize(128,128)</span>
+        <span class="code-chip">/ 255.0</span>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">02</div>
+      <div class="step-content">
+        <h3>GeoProteoNet Segmentation (CNN)</h3>
+        <p>The custom encoder-decoder CNN (GeoProteoNet) segments fetal abdominal structures from the ultrasound. The architecture uses Conv2D → MaxPooling → UpSampling layers with sigmoid output to produce a binary segmentation mask.</p>
+        <span class="code-chip">Conv2D(64/128/256)</span>
+        <span class="code-chip">MaxPooling2D</span>
+        <span class="code-chip">UpSampling2D</span>
+        <span class="code-chip">sigmoid output</span>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">03</div>
+      <div class="step-content">
+        <h3>Hemodynamic Feature Extraction</h3>
+        <p>Five vascular biomarkers are computed from the segmentation mask. These mimic Doppler waveform analysis used in clinical MCA assessment for fetal anemia screening.</p>
+        <span class="code-chip">PSV = max(mask)</span>
+        <span class="code-chip">EDV = min(mask)</span>
+        <span class="code-chip">RI = (PSV−EDV)/PSV</span>
+        <span class="code-chip">PI = (PSV−EDV)/mean</span>
+        <span class="code-chip">S/D = PSV/EDV</span>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">04</div>
+      <div class="step-content">
+        <h3>Random Forest Classification</h3>
+        <p>The extracted 5-feature vector is fed into a trained Random Forest Classifier (100 estimators). Features are standardized using StandardScaler. The classifier outputs a binary label: Anemia Detected / Normal.</p>
+        <span class="code-chip">RandomForestClassifier(n=100)</span>
+        <span class="code-chip">StandardScaler</span>
+        <span class="code-chip">stratified split</span>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">05</div>
+      <div class="step-content">
+        <h3>Report Generation</h3>
+        <p>Results include risk score, individual hemodynamic metrics, feature correlation context, waveform plots, and clinical recommendation. Exportable as tabulated report (tabulate library).</p>
+        <span class="code-chip">classification_report</span>
+        <span class="code-chip">confusion_matrix</span>
+        <span class="code-chip">tabulate</span>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ARCHITECTURE -->
+<section id="architecture">
+<div class="section-inner">
+  <div class="section-tag">Model Design</div>
+  <h2>System Architecture</h2>
+
+  <div class="arch-diagram">
+    <div class="arch-flow">
+      <div class="arch-node"><span class="node-icon">🖼️</span><strong>Ultrasound</strong>Input Image</div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-node"><span class="node-icon">⚙️</span><strong>Preprocess</strong>128×128 Norm</div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-node highlight"><span class="node-icon">🧠</span><strong>GeoProteoNet</strong>CNN Segmentation</div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-node"><span class="node-icon">📐</span><strong>Feature Ext.</strong>PSV/EDV/RI/PI/SD</div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-node highlight"><span class="node-icon">🌲</span><strong>Random Forest</strong>Classifier</div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-node"><span class="node-icon">📋</span><strong>Result</strong>Anemia/Normal</div>
+    </div>
+  </div>
+
+  <div class="two-stage">
+    <div class="stage-card">
+      <div class="stage-label">STAGE 1 — GeoProteoNet CNN</div>
+      <h3>Encoder-Decoder Segmentation</h3>
+      <ul>
+        <li>Input: (128, 128, 1) grayscale ultrasound</li>
+        <li>Encoder: Conv2D(64) → MP → Conv2D(128) → MP → Conv2D(256)</li>
+        <li>Decoder: UpSampling2D → Conv2D(128) → UpSampling2D → Conv2D(64)</li>
+        <li>Output: Conv2D(1, sigmoid) binary mask</li>
+        <li>Loss: Binary Crossentropy | Optimizer: Adam (lr=0.001)</li>
+        <li>Training: 15 epochs, batch size 16</li>
+        <li>Transfer learning variant: 224×224, ImageDataGenerator augmentation</li>
+      </ul>
+    </div>
+    <div class="stage-card">
+      <div class="stage-label">STAGE 2 — Random Forest Classifier</div>
+      <h3>Hemodynamic Risk Classification</h3>
+      <ul>
+        <li>Input: 5-feature vector [PSV, EDV, RI, PI, S/D]</li>
+        <li>n_estimators = 100, random_state = 42</li>
+        <li>Train/test split: 80/20 stratified</li>
+        <li>Preprocessing: StandardScaler normalization</li>
+        <li>Output: Binary (0 = Normal, 1 = Anemia)</li>
+        <li>Evaluation: precision, recall, F1, confusion matrix</li>
+      </ul>
+    </div>
+  </div>
+
+  <div style="margin-top:2rem;">
+    <h3>Hemodynamic Biomarker Reference</h3>
+    <div class="metrics-full">
+      <table>
+        <tr><th>Feature</th><th>Formula</th><th>Clinical Meaning</th><th>Anemia Indicator</th></tr>
+        <tr>
+          <td class="code">PSV</td>
+          <td>max(mask pixel intensity)</td>
+          <td>Peak Systolic Velocity — max blood flow speed</td>
+          <td class="good">PSV &gt; 1.5 MoM = High Risk</td>
+        </tr>
+        <tr>
+          <td class="code">EDV</td>
+          <td>min(mask pixel intensity)</td>
+          <td>End Diastolic Velocity — min blood flow speed</td>
+          <td class="warn">Low EDV = vessel abnormality</td>
+        </tr>
+        <tr>
+          <td class="code">RI</td>
+          <td>(PSV − EDV) / PSV</td>
+          <td>Resistive Index — downstream vascular resistance</td>
+          <td class="warn">RI → 1.0 in fetal anemia</td>
+        </tr>
+        <tr>
+          <td class="code">PI</td>
+          <td>(PSV − EDV) / mean(PSV,EDV)</td>
+          <td>Pulsatility Index — waveform variability</td>
+          <td class="warn">PI → 2.0 in severe cases</td>
+        </tr>
+        <tr>
+          <td class="code">S/D</td>
+          <td>PSV / EDV</td>
+          <td>Systolic-to-Diastolic ratio</td>
+          <td class="good">Very high S/D = critical risk</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- SETUP GUIDE -->
+<section id="setup">
+<div class="section-inner">
+  <div class="section-tag">Deployment Guide</div>
+  <h2>Step-by-Step Setup</h2>
+  <p style="color:var(--muted);margin-bottom:1.5rem;">Complete instructions to set up and run the fetal anemia detection system locally or on Google Colab.</p>
+
+  <div class="setup-tabs">
+    <button class="tab-btn active" onclick="switchTab('colab')">Google Colab</button>
+    <button class="tab-btn" onclick="switchTab('local')">Local (Python)</button>
+    <button class="tab-btn" onclick="switchTab('flask')">Flask Web API</button>
+    <button class="tab-btn" onclick="switchTab('docker')">Docker</button>
+  </div>
+
+  <!-- COLAB TAB -->
+  <div class="tab-pane active" id="tab-colab">
+    <h3>1. Mount Google Drive</h3>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+<span class="cm"># Run this first cell in Colab</span>
+<span class="ck">from</span> google.colab <span class="ck">import</span> drive
+drive.mount(<span class="cs">'/content/drive'</span>)
+    </div>
+
+    <h3>2. Install Dependencies</h3>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+!pip install tensorflow tqdm scikit-learn opencv-python scikit-image tabulate joblib
+    </div>
+
+    <h3>3. Set Dataset Path</h3>
+    <div class="info-card">
+      <strong>📁 Dataset:</strong> Place your "Fetal Abdominal Structures Segmentation Dataset" inside Google Drive. The expected path is:<br/>
+      <code style="font-family:'DM Mono',monospace;font-size:.8rem;">/content/drive/MyDrive/Fetal Abdominal Structures Segmentation Dataset.../IMAGES</code>
+    </div>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+images_dir = <span class="cs">"/content/drive/MyDrive/Fetal Abdominal Structures Segmentation Dataset Using Ultrasonic Images (1)/IMAGES"</span>
+masks_dir  = <span class="cs">"/content/drive/MyDrive/Fetal Abdominal Structures Segmentation Dataset Using Ultrasonic Images (1)/IMAGES"</span>
+    </div>
+
+    <h3>4. Run Training Pipeline</h3>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+<span class="cm"># Load and preprocess</span>
+X, y = load_data(images_dir, masks_dir, img_size=(<span class="cv">128</span>, <span class="cv">128</span>))
+X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=<span class="cv">0.2</span>)
+
+<span class="cm"># Build and compile GeoProteoNet</span>
+model = geoproteonet_model()
+model.compile(optimizer=Adam(lr=<span class="cv">0.001</span>), loss=<span class="cs">'binary_crossentropy'</span>, metrics=[<span class="cs">'accuracy'</span>])
+
+<span class="cm"># Train</span>
+history = model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=<span class="cv">15</span>, batch_size=<span class="cv">16</span>)
+    </div>
+
+    <h3>5. Save & Load Model</h3>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+<span class="ck">from</span> joblib <span class="ck">import</span> dump, load
+
+<span class="cm"># Save</span>
+dump(clf, <span class="cs">"trained_model.joblib"</span>)
+dump(scaler, <span class="cs">"scaler.joblib"</span>)
+
+<span class="cm"># Load for inference</span>
+model  = load(<span class="cs">"trained_model.joblib"</span>)
+scaler = load(<span class="cs">"scaler.joblib"</span>)
+    </div>
+
+    <h3>6. Run Prediction on New Image</h3>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+<span class="ck">import</span> cv2, numpy <span class="ck">as</span> np
+
+<span class="cm"># Load & preprocess</span>
+img = cv2.imread(<span class="cs">"patient_ultrasound.jpg"</span>, cv2.IMREAD_GRAYSCALE)
+img = cv2.resize(img, (<span class="cv">128</span>, <span class="cv">128</span>)) / <span class="cv">255.0</span>
+img = img.reshape(<span class="cv">1</span>, <span class="cv">128</span>, <span class="cv">128</span>, <span class="cv">1</span>)
+
+<span class="cm"># Segment</span>
+mask_pred = cnn_model.predict(img)
+mask_pred = (mask_pred > <span class="cv">0.5</span>).astype(np.uint8)
+
+<span class="cm"># Extract features</span>
+feats = extract_features(mask_pred.squeeze())
+feat_arr = scaler.transform([list(feats.values())])
+
+<span class="cm"># Classify</span>
+label = clf.predict(feat_arr)[<span class="cv">0</span>]
+print(<span class="cs">"Anemia Detected"</span> <span class="ck">if</span> label == <span class="cv">1</span> <span class="ck">else</span> <span class="cs">"Normal"</span>)
+    </div>
+  </div>
+
+  <!-- LOCAL TAB -->
+  <div class="tab-pane" id="tab-local">
+    <h3>Requirements</h3>
+    <table class="req-table">
+      <tr><th>Package</th><th>Version</th><th>Purpose</th></tr>
+      <tr><td>Python</td><td>3.8+</td><td>Runtime</td></tr>
+      <tr><td>tensorflow</td><td>2.x</td><td>GeoProteoNet CNN</td></tr>
+      <tr><td>scikit-learn</td><td>latest</td><td>Random Forest + metrics</td></tr>
+      <tr><td>opencv-python</td><td>latest</td><td>Image preprocessing</td></tr>
+      <tr><td>scikit-image</td><td>latest</td><td>LBP feature extraction</td></tr>
+      <tr><td>joblib</td><td>latest</td><td>Model serialization</td></tr>
+      <tr><td>tabulate</td><td>latest</td><td>Results table formatting</td></tr>
+      <tr><td>matplotlib / seaborn</td><td>latest</td><td>Waveform & heatmap plots</td></tr>
+    </table>
+
+    <h3>Install</h3>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+pip install tensorflow scikit-learn opencv-python scikit-image joblib tabulate matplotlib seaborn tqdm pandas numpy
+    </div>
+
+    <h3>Run Training Script</h3>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+python anemia.py
+<span class="cm"># or for transfer learning variant:</span>
+python transfer_learning_for_the_anemia.py
+    </div>
+
+    <h3>Inference</h3>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+python predict.py --image path/to/ultrasound.jpg --output results/
+    </div>
+  </div>
+
+  <!-- FLASK TAB -->
+  <div class="tab-pane" id="tab-flask">
+    <h3>Flask API Server</h3>
+    <div class="info-card">
+      <strong>ℹ️ Note:</strong> This wraps your trained models into a REST API so this HTML frontend can send images and receive results.
+    </div>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+<span class="cm"># app.py</span>
+<span class="ck">from</span> flask <span class="ck">import</span> Flask, request, jsonify
+<span class="ck">from</span> flask_cors <span class="ck">import</span> CORS
+<span class="ck">import</span> cv2, numpy <span class="ck">as</span> np
+<span class="ck">from</span> joblib <span class="ck">import</span> load
+<span class="ck">from</span> tensorflow.keras.models <span class="ck">import</span> load_model
+
+app = Flask(__name__)
+CORS(app)
+
+cnn   = load_model(<span class="cs">'geoproteonet.h5'</span>)
+clf   = load(<span class="cs">'trained_model.joblib'</span>)
+scaler= load(<span class="cs">'scaler.joblib'</span>)
+
+<span class="cv">@app.route</span>(<span class="cs">'/predict'</span>, methods=[<span class="cs">'POST'</span>])
+<span class="ck">def</span> predict():
+    file  = request.files[<span class="cs">'image'</span>]
+    nparr = np.frombuffer(file.read(), np.uint8)
+    img   = cv2.imdecode(nparr, cv2.IMREAD_GRAYSCALE)
+    img   = cv2.resize(img, (<span class="cv">128</span>,<span class="cv">128</span>)) / <span class="cv">255.0</span>
+    img   = img.reshape(<span class="cv">1</span>,<span class="cv">128</span>,<span class="cv">128</span>,<span class="cv">1</span>)
+    mask  = cnn.predict(img)
+    mask  = (mask > <span class="cv">0.5</span>).astype(np.uint8)
+    feats = extract_features(mask.squeeze())
+    arr   = scaler.transform([list(feats.values())])
+    label = clf.predict(arr)[<span class="cv">0</span>]
+    <span class="ck">return</span> jsonify({<span class="cs">'result'</span>: <span class="ck">int</span>(label), <span class="cs">'features'</span>: feats})
+
+<span class="ck">if</span> __name__ == <span class="cs">'__main__'</span>:
+    app.run(debug=<span class="cv">True</span>, port=<span class="cv">5000</span>)
+    </div>
+
+    <h3>Start Server</h3>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+pip install flask flask-cors
+python app.py
+<span class="cm"># Server runs on http://localhost:5000</span>
+    </div>
+
+    <h3>Test with cURL</h3>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+curl -X POST http://localhost:5000/predict \
+  -F "image=@patient_scan.jpg" \
+  | python -m json.tool
+    </div>
+  </div>
+
+  <!-- DOCKER TAB -->
+  <div class="tab-pane" id="tab-docker">
+    <h3>Dockerfile</h3>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+FROM python:3.10-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY . .
+EXPOSE 5000
+CMD [<span class="cs">"python"</span>, <span class="cs">"app.py"</span>]
+    </div>
+
+    <h3>requirements.txt</h3>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+tensorflow==2.13.0
+scikit-learn
+opencv-python-headless
+scikit-image
+joblib
+flask
+flask-cors
+tabulate
+numpy
+pandas
+    </div>
+
+    <h3>Build & Run</h3>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">copy</button>
+docker build -t fetalscan-ai .
+docker run -p 5000:5000 fetalscan-ai
+    </div>
+
+    <div class="warn-card">
+      <strong>⚠️ Model files:</strong> Ensure <code>geoproteonet.h5</code>, <code>trained_model.joblib</code>, and <code>scaler.joblib</code> are in the project root before building the Docker image, or mount a volume.
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- WAVEFORM & REPORTS -->
+<section id="reports">
+<div class="section-inner">
+  <div class="section-tag">Analytics & Reporting</div>
+  <h2>Hemodynamic Reports</h2>
+
+  <div class="waveform-demo">
+    <p style="color:var(--muted);font-size:.85rem;margin-bottom:.75rem;">Interactive Doppler waveform simulation — PSV and EDV across sample points</p>
+    <canvas id="waveCanvas"></canvas>
+  </div>
+
+  <div class="report-grid">
+    <div class="report-card">
+      <div class="r-icon">📊</div>
+      <div class="r-title">Feature Tabulation Report</div>
+      <div class="r-desc">PSV, EDV, RI, PI, S/D ratios formatted using the tabulate library. Includes ground-truth labels and model predictions per sample.</div>
+      <div class="r-meta">tabulate · pandas DataFrame</div>
+    </div>
+    <div class="report-card">
+      <div class="r-icon">🌊</div>
+      <div class="r-title">Doppler Waveform Plot</div>
+      <div class="r-desc">Time-series visualization of PSV and EDV across scan indices, with interactive cursor support via matplotlib widgets.</div>
+      <div class="r-meta">matplotlib · Cursor widget</div>
+    </div>
+    <div class="report-card">
+      <div class="r-icon">🔥</div>
+      <div class="r-title">Feature Correlation Heatmap</div>
+      <div class="r-desc">Seaborn heatmap of correlation between PSV, EDV, RI, PI, S/D and anemia label. Identifies which biomarkers are most predictive.</div>
+      <div class="r-meta">seaborn · sns.heatmap()</div>
+    </div>
+    <div class="report-card">
+      <div class="r-icon">📈</div>
+      <div class="r-title">Normalized Feature Distribution</div>
+      <div class="r-desc">MinMaxScaler normalization of all features plotted to identify distribution skew — important for high S/D outlier values (10^18 range).</div>
+      <div class="r-meta">MinMaxScaler · matplotlib</div>
+    </div>
+    <div class="report-card">
+      <div class="r-icon">🎭</div>
+      <div class="r-title">Segmentation Comparison</div>
+      <div class="r-desc">Side-by-side display of original ultrasound, ground-truth segmentation mask, and GeoProteoNet-predicted mask using matplotlib subplots.</div>
+      <div class="r-meta">cv2 · plt.imshow(cmap='gray')</div>
+    </div>
+    <div class="report-card">
+      <div class="r-icon">📋</div>
+      <div class="r-title">Classification Report</div>
+      <div class="r-desc">Full sklearn classification_report with precision, recall, F1-score per class. Confusion matrix for TP/FP/TN/FN breakdown.</div>
+      <div class="r-meta">sklearn.metrics · confusion_matrix</div>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- HISTORY -->
+<section id="history">
+<div class="section-inner">
+  <div class="section-tag">Session Records</div>
+  <h2>Previous Analysis Reports</h2>
+  <div class="history-table">
+    <table id="historyTable">
+      <thead>
+        <tr>
+          <th>#</th><th>Patient ID</th><th>Timestamp</th>
+          <th>PSV</th><th>EDV</th><th>RI</th><th>PI</th><th>S/D</th>
+          <th>Result</th><th>Confidence</th>
+        </tr>
+      </thead>
+      <tbody id="historyBody">
+        <tr>
+          <td>1</td><td>PT-DEMO-001</td><td>2025-04-10 09:14</td>
+          <td>0.956</td><td>1.18e-19</td><td>1.00</td><td>2.00</td><td>8.1e+18</td>
+          <td><span class="tag-pos">Anemia</span></td><td>91%</td>
+        </tr>
+        <tr>
+          <td>2</td><td>PT-DEMO-002</td><td>2025-04-11 11:32</td>
+          <td>0.762</td><td>0.243</td><td>0.68</td><td>1.12</td><td>3.14</td>
+          <td><span class="tag-neg">Normal</span></td><td>87%</td>
+        </tr>
+        <tr>
+          <td>3</td><td>PT-DEMO-003</td><td>2025-04-12 14:55</td>
+          <td>0.916</td><td>2.25e-25</td><td>1.00</td><td>2.00</td><td>4.1e+24</td>
+          <td><span class="tag-pos">Anemia</span></td><td>96%</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</section>
+
+<!-- ABOUT -->
+<section id="about">
+<div class="section-inner">
+  <div class="section-tag">Project Information</div>
+  <h2>About This System</h2>
+  <div class="about-grid">
+    <div>
+      <p style="color:var(--subtle);line-height:1.8;margin-bottom:1rem;">
+        This system is the major project capstone for B.E. VIII Semester Computer Science Engineering at <strong style="color:var(--text)">Muffakham Jah College of Engineering and Technology (MJCET)</strong>, Hyderabad. It presents a non-invasive AI-assisted approach to fetal anemia screening using Doppler ultrasound imaging.
+      </p>
+      <p style="color:var(--subtle);line-height:1.8;margin-bottom:1rem;">
+        The two-stage pipeline combines a custom <strong style="color:var(--text)">GeoProteoNet</strong> encoder-decoder CNN for fetal abdominal structure segmentation with a <strong style="color:var(--text)">Random Forest classifier</strong> operating on hemodynamic features (PSV, EDV, RI, PI, S/D ratio) extracted from the predicted segmentation masks.
+      </p>
+      <p style="color:var(--subtle);line-height:1.8;">
+        The dataset used is the <em>Fetal Abdominal Structures Segmentation Dataset Using Ultrasonic Images</em>. Model training was performed on Google Colab with TensorFlow 2.x. Image augmentation (rotation, shear, zoom, flips) was applied in the transfer learning variant to improve generalization.
+      </p>
+
+      <div class="disclaimer">
+        <strong>⚠️ Medical Disclaimer:</strong> This system is a research prototype developed for academic purposes. It is <em>not</em> a certified medical device and must not be used as a sole diagnostic tool. All results should be verified by a qualified medical professional (perinatologist, sonographer). The model operates in demo simulation mode in this web interface — live inference requires the Python backend with trained model files.
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:1rem;">
+      <div class="team-card">
+        <div class="t-role">Developers — Major Project</div>
+        <div class="t-name">Shaikh Mazein Ahmed</div>
+        <div class="t-name">Shaik Syed</div>
+        <div class="t-name">Mohammad Owais</div>
+        <div class="t-inst">B.E. CSE VIII Sem · MJCET, Hyderabad</div>
+        <div style="margin-top:.5rem;font-size:.78rem;color:var(--muted);">GitHub: @shaikhmazz</div>
+      </div>
+      <div class="team-card">
+        <div class="t-role">Project Guide</div>
+        <div class="t-name">Ms. Nabeela Fatima</div>
+        <div class="t-inst">CSED · MJCET, Hyderabad</div>
+      </div>
+      <div class="team-card">
+        <div class="t-role">Institution</div>
+        <div class="t-name">MJCET</div>
+        <div class="t-inst">Muffakham Jah College of Engineering and Technology<br/>Hyderabad, Telangana, India</div>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<footer>
+  <p>FetalScan AI · Fetal Anemia Detection System · MJCET Major Project 2025</p>
+  <p style="margin-top:.4rem;">Built with GeoProteoNet CNN + Random Forest · TensorFlow · scikit-learn · OpenCV</p>
+  <p style="margin-top:.4rem;font-size:.72rem;">For academic research only · Not for clinical use</p>
+</footer>
+
+<script>
+// ── FILE UPLOAD ──
+const uploadZone = document.getElementById('uploadZone');
+const fileInput  = document.getElementById('fileInput');
+const previewImg = document.getElementById('previewImg');
+const previewEmpty=document.getElementById('previewEmpty');
+const analyzeBtn = document.getElementById('analyzeBtn');
+
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault(); uploadZone.classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if(file) handleFile(file);
+});
+fileInput.addEventListener('change', () => {
+  if(fileInput.files[0]) handleFile(fileInput.files[0]);
+});
+
+function handleFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    previewImg.src = e.target.result;
+    previewImg.style.display = 'block';
+    previewEmpty.style.display = 'none';
+    analyzeBtn.disabled = false;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── ANALYSIS SIMULATION ──
+function runAnalysis() {
+  const overlay = document.getElementById('progressOverlay');
+  const stepTxt = document.getElementById('progressStep');
+  const steps   = [
+    'Step 1/4: Preprocessing image (resize to 128×128, normalize)',
+    'Step 2/4: Running GeoProteoNet CNN segmentation…',
+    'Step 3/4: Extracting PSV, EDV, RI, PI, S/D features…',
+    'Step 4/4: Random Forest classification…'
+  ];
+  overlay.classList.add('show');
+  let i = 0;
+  const iv = setInterval(() => {
+    stepTxt.textContent = steps[i];
+    i++;
+    if(i >= steps.length) {
+      clearInterval(iv);
+      setTimeout(() => {
+        overlay.classList.remove('show');
+        showResult();
+      }, 700);
+    }
+  }, 900);
+}
+
+function showResult() {
+  // Simulate realistic fetal anemia features
+  const isAnemia = Math.random() > 0.5;
+  const psv  = (0.88 + Math.random()*0.1).toFixed(3);
+  const edv  = isAnemia ? (1e-19 * (1+Math.random())).toExponential(2) : (0.2+Math.random()*0.15).toFixed(3);
+  const ri   = isAnemia ? (0.95+Math.random()*0.05).toFixed(2) : (0.58+Math.random()*0.12).toFixed(2);
+  const pi   = isAnemia ? (1.9+Math.random()*0.15).toFixed(2)  : (0.9+Math.random()*0.3).toFixed(2);
+  const sd   = isAnemia ? '4.1e+18' : (2.5+Math.random()*2).toFixed(2);
+  const conf = Math.round(80 + Math.random()*16);
+  const risk = isAnemia ? Math.round(72 + Math.random()*24) : Math.round(12 + Math.random()*22);
+
+  document.getElementById('mPSV').textContent = psv;
+  document.getElementById('mEDV').textContent = edv;
+  document.getElementById('mRI').textContent  = ri;
+  document.getElementById('mPI').textContent  = pi;
+  document.getElementById('mSD').textContent  = sd;
+
+  const header  = document.getElementById('resultHeader');
+  const verdict = document.getElementById('resultVerdict');
+  const pill    = document.getElementById('confPill');
+  const fill    = document.getElementById('riskFill');
+  const riskPct = document.getElementById('riskPct');
+  const recBox  = document.getElementById('recBox');
+
+  if(isAnemia) {
+    header.className  = 'result-header positive';
+    verdict.className = 'result-verdict pos';
+    verdict.textContent = '⚠ Fetal Anemia Detected';
+    pill.className    = 'confidence-pill pos';
+    pill.textContent  = `${conf}% confidence`;
+    fill.className    = 'risk-fill high';
+    fill.style.width  = risk + '%';
+    riskPct.textContent = risk + '%';
+    recBox.innerHTML = '<strong>⚕ Clinical Recommendation</strong>Elevated MCA-PSV and extreme S/D ratio indicate possible moderate-to-severe fetal anemia. Immediate referral for formal Doppler assessment and potential intrauterine transfusion evaluation is advised. Consult a perinatologist.';
+  } else {
+    header.className  = 'result-header negative';
+    verdict.className = 'result-verdict neg';
+    verdict.textContent = '✓ No Anemia Detected';
+    pill.className    = 'confidence-pill neg';
+    pill.textContent  = `${conf}% confidence`;
+    fill.className    = 'risk-fill low';
+    fill.style.width  = risk + '%';
+    riskPct.textContent = risk + '%';
+    recBox.innerHTML = '<strong>✅ Clinical Recommendation</strong>Hemodynamic parameters are within normal range. RI and PI values suggest no significant vascular resistance abnormality. Continue routine prenatal monitoring as per gestational age protocol.';
+  }
+
+  document.getElementById('resultPanel').classList.add('show');
+
+  // Add to history
+  const pid   = document.getElementById('pidInput').value || 'PT-' + Date.now().toString().slice(-5);
+  const tbody = document.getElementById('historyBody');
+  const now   = new Date().toLocaleString('sv-SE').slice(0,16);
+  const row   = document.createElement('tr');
+  const rows  = tbody.querySelectorAll('tr').length + 1;
+  row.innerHTML = `
+    <td>${rows}</td><td>${pid}</td><td>${now}</td>
+    <td>${psv}</td><td>${edv}</td><td>${ri}</td><td>${pi}</td><td>${sd}</td>
+    <td>${isAnemia ? '<span class="tag-pos">Anemia</span>' : '<span class="tag-neg">Normal</span>'}</td>
+    <td>${conf}%</td>
+  `;
+  tbody.insertBefore(row, tbody.firstChild);
+}
+
+// ── TABS ──
+function switchTab(id) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+// ── COPY CODE ──
+function copyCode(btn) {
+  const block = btn.parentElement;
+  const txt   = block.innerText.replace('copy\n','').trim();
+  navigator.clipboard.writeText(txt).then(() => {
+    btn.textContent = 'copied!';
+    setTimeout(()=>btn.textContent='copy', 2000);
+  });
+}
+
+// ── WAVEFORM CANVAS ──
+(function drawWaveform() {
+  const c   = document.getElementById('waveCanvas');
+  const ctx = c.getContext('2d');
+  c.width   = c.offsetWidth || 800;
+  c.height  = 200;
+  const W   = c.width, H = c.height;
+
+  const psv = [0.956, 0.916, 0.926, 0.916, 0.948, 0.931, 0.942, 0.938];
+  const edv = [0.02,  0.015, 0.018, 0.016, 0.021, 0.014, 0.019, 0.017];
+
+  const pad  = 40;
+  const cols = psv.length;
+  const step = (W - 2*pad) / (cols-1);
+
+  ctx.clearRect(0,0,W,H);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(255,255,255,.04)';
+  ctx.lineWidth   = 1;
+  for(let g=0; g<=4; g++) {
+    const y = pad + (H-2*pad)*g/4;
+    ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(W-pad,y); ctx.stroke();
+  }
+
+  function drawLine(data, color, label, normalize) {
+    const min = 0, max = 1;
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth   = 2;
+    ctx.shadowColor = color;
+    ctx.shadowBlur  = 6;
+    data.forEach((v,i) => {
+      const x = pad + i*step;
+      const y = H - pad - ((v - min)/(max-min)) * (H-2*pad);
+      i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Dots
+    data.forEach((v,i) => {
+      const x = pad + i*step;
+      const y = H - pad - ((v - min)/(max-min)) * (H-2*pad);
+      ctx.beginPath();
+      ctx.arc(x,y,3,0,Math.PI*2);
+      ctx.fillStyle = color;
+      ctx.fill();
+    });
+  }
+
+  drawLine(psv, '#00c9a7', 'PSV');
+  drawLine(edv.map(v=>v*10), '#3b82f6', 'EDV ×10');
+
+  // Legend
+  ctx.font = '12px DM Mono, monospace';
+  ctx.fillStyle = '#00c9a7'; ctx.fillRect(pad, 12, 12, 3);
+  ctx.fillText('PSV', pad+16, 17);
+  ctx.fillStyle = '#3b82f6'; ctx.fillRect(pad+60, 12, 12, 3);
+  ctx.fillText('EDV ×10', pad+76, 17);
+
+  // X labels
+  ctx.fillStyle = '#64748b'; ctx.font = '10px DM Mono, monospace';
+  psv.forEach((_,i)=>{ ctx.fillText(i+1, pad+i*step-3, H-8); });
+})();
+</script>
+</body>
+</html>
